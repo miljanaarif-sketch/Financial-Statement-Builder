@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { DEFAULT_NOTES } from './data/defaultNotes';
 import LandingPage from './pages/LandingPage';
+import EntryPage from './pages/EntryPage';
 import ConnectPage from './pages/ConnectPage';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -11,7 +12,7 @@ import NotesPage from './pages/NotesPage';
 import ExportPage from './pages/ExportPage';
 import type { AppSession } from './types';
 
-type View = 'landing' | 'connect' | 'app';
+type View = 'landing' | 'entry' | 'connect' | 'app';
 
 const INITIAL_SESSION: AppSession = {
   session_id: '',
@@ -53,8 +54,19 @@ export default function App() {
   if (view === 'landing') {
     return (
       <LandingPage
+        onUpload={() => setView('entry')}
+        onConnect={() => setView('entry')}
+      />
+    );
+  }
+
+  // ── Entry — choose upload or connect ────────────────────────
+  if (view === 'entry') {
+    return (
+      <EntryPage
         onUpload={() => setView('app')}
         onConnect={() => setView('connect')}
+        onBack={() => setView('landing')}
       />
     );
   }

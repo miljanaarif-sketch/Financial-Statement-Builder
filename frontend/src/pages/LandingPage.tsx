@@ -113,67 +113,6 @@ export default function LandingPage({ onUpload }: Props) {
           </div>
         </div>
 
-        {/* ── Two option cards ─────────────────────────────────── */}
-        <div style={{
-          maxWidth: 860, margin: '48px auto 0', padding: '0 48px',
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20,
-        }}>
-          {/* Upload card */}
-          <div onClick={onUpload} style={{
-            background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
-            border: '2px solid #bfdbfe', borderRadius: 18, padding: '30px 28px',
-            cursor: 'pointer', transition: 'all .2s',
-          }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 40px rgba(21,87,160,.15)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
-          >
-            <div style={{ fontSize: 40, marginBottom: 14 }}>📂</div>
-            <div style={{ fontSize: 19, fontWeight: 800, color: '#1e3a5f', marginBottom: 8 }}>Upload Your Data</div>
-            <div style={{ fontSize: 14, color: '#3b6ea0', lineHeight: 1.7, marginBottom: 18 }}>
-              Drag & drop your CSV or Excel files — trial balance, AR aging, AP aging and fixed assets. We handle the rest.
-            </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
-              {['CSV', 'XLS', 'XLSX', 'Trial Balance', 'AR/AP Aging'].map(t => (
-                <span key={t} style={{ background: 'rgba(21,87,160,.12)', borderRadius: 5, padding: '3px 9px', fontSize: 11, fontWeight: 600, color: '#1557a0' }}>{t}</span>
-              ))}
-            </div>
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              background: '#1557a0', color: '#fff', borderRadius: 10, padding: '13px 20px',
-              fontWeight: 700, fontSize: 14,
-            }}>Start with Upload <span>→</span></div>
-          </div>
-
-          {/* Connect ERP card */}
-          <div onClick={onConnect} style={{
-            background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-            border: '2px solid #bbf7d0', borderRadius: 18, padding: '30px 28px',
-            cursor: 'pointer', transition: 'all .2s',
-          }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 40px rgba(22,101,52,.12)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
-          >
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div style={{ fontSize: 40 }}>🔗</div>
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#16a34a', background: 'rgba(22,163,74,.12)', border: '1px solid rgba(22,163,74,.3)', borderRadius: 5, padding: '3px 8px', letterSpacing: '.5px' }}>LIVE SYNC</span>
-            </div>
-            <div style={{ fontSize: 19, fontWeight: 800, color: '#14532d', marginBottom: 8 }}>Connect Your ERP</div>
-            <div style={{ fontSize: 14, color: '#15803d', lineHeight: 1.7, marginBottom: 18 }}>
-              API-connect to your accounting system. Pull live data and generate statements on demand — always up to date.
-            </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
-              {['QuickBooks', 'Xero', 'SAP', 'Oracle', 'Sage', 'NetSuite'].map(t => (
-                <span key={t} style={{ background: 'rgba(22,163,74,.1)', borderRadius: 5, padding: '3px 9px', fontSize: 11, fontWeight: 600, color: '#166534' }}>{t}</span>
-              ))}
-            </div>
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              background: '#16a34a', color: '#fff', borderRadius: 10, padding: '13px 20px',
-              fontWeight: 700, fontSize: 14,
-            }}>Connect Now <span>→</span></div>
-          </div>
-        </div>
-
         {/* Feature grid */}
         <div style={{
           maxWidth: 960, margin: '52px auto 0', padding: '0 48px',
