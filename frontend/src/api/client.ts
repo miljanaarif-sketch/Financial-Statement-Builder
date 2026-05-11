@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-// In development, Vite proxies /upload, /mapping etc. to localhost:8000
-// In production (Vercel), rewrites forward them to the serverless function directly
-const api = axios.create({ baseURL: '' });
+// In development: Vite proxies /upload, /mapping etc. → localhost:8000
+// In production (Vercel experimentalServices): backend is served at /_/backend
+const isProd = import.meta.env.PROD;
+const api = axios.create({ baseURL: isProd ? '/_/backend' : '' });
 export default api;

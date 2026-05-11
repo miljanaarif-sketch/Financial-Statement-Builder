@@ -1,14 +1,13 @@
 {
-  "version": 2,
-  "buildCommand": "cd frontend && npm install --legacy-peer-deps && npm run build",
-  "outputDirectory": "frontend/dist",
-  "rewrites": [
-    { "source": "/health",            "destination": "/api/index" },
-    { "source": "/upload/:path*",     "destination": "/api/index" },
-    { "source": "/mapping/:path*",    "destination": "/api/index" },
-    { "source": "/statements/:path*", "destination": "/api/index" },
-    { "source": "/notes/:path*",      "destination": "/api/index" },
-    { "source": "/export/:path*",     "destination": "/api/index" },
-    { "source": "/(.*)",              "destination": "/index.html" }
-  ]
+  "experimentalServices": {
+    "frontend": {
+      "entrypoint": "frontend",
+      "routePrefix": "/",
+      "framework": "vite"
+    },
+    "backend": {
+      "entrypoint": "backend-node",
+      "routePrefix": "/_/backend"
+    }
+  }
 }
