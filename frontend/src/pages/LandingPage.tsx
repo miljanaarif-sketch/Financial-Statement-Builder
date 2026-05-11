@@ -31,6 +31,9 @@ export default function LandingPage({ onUpload }: Props) {
         <nav style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '18px 48px', borderBottom: '1px solid #f1f5f9',
+          position: 'sticky', top: 0, zIndex: 100,
+          background: '#fff', backdropFilter: 'blur(10px)',
+          boxShadow: '0 1px 12px rgba(0,0,0,.06)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
