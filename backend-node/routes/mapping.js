@@ -4,7 +4,7 @@ const fs      = require('fs');
 const { getStatements, getCategories, getSubcategories } = require('../services/accountMapper');
 
 const router = express.Router();
-const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploads');
 
 function loadSession(sid) {
   const dir = path.join(UPLOADS_DIR, sid);

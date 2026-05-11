@@ -7,7 +7,7 @@ const { generateStatements } = require('../services/statementGenerator');
 const { generateNotes }      = require('../services/notesGenerator');
 
 const router = express.Router();
-const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploads');
 
 // POST /statements/generate
 router.post('/generate', (req, res) => {

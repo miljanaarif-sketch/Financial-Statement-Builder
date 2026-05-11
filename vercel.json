@@ -1,6 +1,23 @@
 {
-  "buildCommand": "cd frontend && npm install --legacy-peer-deps && npm run build",
-  "outputDirectory": "frontend/dist",
-  "installCommand": "cd frontend && npm install --legacy-peer-deps",
-  "framework": "vite"
+  "version": 2,
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    },
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "rewrites": [
+    { "source": "/health",           "destination": "/api/index" },
+    { "source": "/upload/:path*",    "destination": "/api/index" },
+    { "source": "/mapping/:path*",   "destination": "/api/index" },
+    { "source": "/statements/:path*","destination": "/api/index" },
+    { "source": "/notes/:path*",     "destination": "/api/index" },
+    { "source": "/export/:path*",    "destination": "/api/index" },
+    { "source": "/(.*)",             "destination": "/index.html" }
+  ]
 }

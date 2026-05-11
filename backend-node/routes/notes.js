@@ -8,7 +8,7 @@ const mammoth   = require('mammoth');
 const Anthropic = require('@anthropic-ai/sdk');
 
 const router      = express.Router();
-const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploads');
 
 /* ── multer for .docx uploads ──────────────────────────────── */
 const upload = multer({
