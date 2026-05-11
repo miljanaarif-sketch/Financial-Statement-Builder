@@ -78,6 +78,36 @@ export default function LandingPage({ onUpload }: Props) {
           }}>
             Transform raw ledger data into complete IFRS-ready financial statements, disclosures, notes, and management reports — powered by intelligent automation.
           </p>
+
+          {/* Enter Platform + Powered by NAWRAS — right after description */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginTop: 36 }}>
+            <button
+              onClick={onUpload}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '18px 56px', borderRadius: 50, border: 'none',
+                background: 'linear-gradient(135deg, #1557a0, #2563eb)',
+                color: '#fff', fontSize: 17, fontWeight: 800, cursor: 'pointer',
+                boxShadow: '0 10px 40px rgba(21,87,160,.4), 0 0 0 5px #fff, 0 0 0 7px rgba(21,87,160,.18)',
+                letterSpacing: '-.2px', whiteSpace: 'nowrap',
+                transition: 'transform .2s, box-shadow .2s',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.transform = 'scale(1.05)';
+                (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 50px rgba(21,87,160,.55), 0 0 0 5px #fff, 0 0 0 7px rgba(21,87,160,.3)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
+                (e.currentTarget as HTMLElement).style.boxShadow = '0 10px 40px rgba(21,87,160,.4), 0 0 0 5px #fff, 0 0 0 7px rgba(21,87,160,.18)';
+              }}
+            >
+              Enter Platform
+              <span style={{ fontSize: 20 }}>→</span>
+            </button>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
+              Powered by <span style={{ color: '#1557a0', fontWeight: 800 }}>NAWRAS</span>
+            </div>
+          </div>
         </div>
 
         {/* Feature grid */}
@@ -97,8 +127,8 @@ export default function LandingPage({ onUpload }: Props) {
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
               }}>{f.icon}</div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>{f.title}</div>
-                <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>{f.desc}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>{f.title}</div>
+                <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>{f.desc}</div>
               </div>
             </div>
           ))}
@@ -112,40 +142,6 @@ export default function LandingPage({ onUpload }: Props) {
         padding: '56px 48px 56px',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
       }}>
-
-        {/* Enter button + Powered by NAWRAS — TOP of green section */}
-        <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
-          marginBottom: 56,
-        }}>
-          <button
-            onClick={onUpload}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              padding: '20px 60px', borderRadius: 50, border: 'none',
-              background: '#fff',
-              color: '#1557a0', fontSize: 18, fontWeight: 800, cursor: 'pointer',
-              boxShadow: '0 12px 45px rgba(0,0,0,.25), 0 0 0 4px rgba(255,255,255,.2)',
-              letterSpacing: '-.2px', whiteSpace: 'nowrap',
-              transition: 'transform .2s, box-shadow .2s',
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLElement).style.transform = 'scale(1.05)';
-              (e.currentTarget as HTMLElement).style.boxShadow = '0 18px 55px rgba(0,0,0,.35), 0 0 0 4px rgba(255,255,255,.3)';
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
-              (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 45px rgba(0,0,0,.25), 0 0 0 4px rgba(255,255,255,.2)';
-            }}
-          >
-            Enter Platform
-            <span style={{ fontSize: 20 }}>→</span>
-          </button>
-
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.55)', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
-            Powered by <span style={{ color: '#fff', fontWeight: 800 }}>NAWRAS</span>
-          </div>
-        </div>
 
         {/* Trust badges row */}
         <div style={{
