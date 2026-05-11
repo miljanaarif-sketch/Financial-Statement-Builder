@@ -25,7 +25,7 @@ export default function LandingPage({ onUpload }: Props) {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Inter', system-ui, sans-serif", overflowX: 'hidden' }}>
 
       {/* ─── TOP HALF — white ─────────────────────────────────────── */}
-      <div style={{ flex: 1, background: '#ffffff', paddingBottom: 55 }}>
+      <div style={{ flex: 1, background: '#ffffff', paddingBottom: 48 }}>
 
         {/* Nav */}
         <nav style={{
@@ -104,47 +104,48 @@ export default function LandingPage({ onUpload }: Props) {
           ))}
         </div>
 
-        {/* ─── Enter button + Powered by NAWRAS (inside white half) ─ */}
+      </div>
+
+      {/* ─── BOTTOM HALF — green ──────────────────────────────────── */}
+      <div style={{
+        background: 'linear-gradient(160deg, #064e3b 0%, #065f46 40%, #047857 100%)',
+        padding: '56px 48px 56px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+      }}>
+
+        {/* Enter button + Powered by NAWRAS — TOP of green section */}
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
-          padding: '48px 0 52px',
+          marginBottom: 56,
         }}>
           <button
             onClick={onUpload}
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
-              padding: '18px 56px', borderRadius: 50, border: 'none',
-              background: 'linear-gradient(135deg, #1557a0, #2563eb)',
-              color: '#fff', fontSize: 17, fontWeight: 800, cursor: 'pointer',
-              boxShadow: '0 10px 40px rgba(21,87,160,.4), 0 0 0 5px #fff, 0 0 0 7px rgba(21,87,160,.18)',
+              padding: '20px 60px', borderRadius: 50, border: 'none',
+              background: '#fff',
+              color: '#1557a0', fontSize: 18, fontWeight: 800, cursor: 'pointer',
+              boxShadow: '0 12px 45px rgba(0,0,0,.25), 0 0 0 4px rgba(255,255,255,.2)',
               letterSpacing: '-.2px', whiteSpace: 'nowrap',
               transition: 'transform .2s, box-shadow .2s',
             }}
             onMouseEnter={e => {
               (e.currentTarget as HTMLElement).style.transform = 'scale(1.05)';
-              (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 50px rgba(21,87,160,.55), 0 0 0 5px #fff, 0 0 0 7px rgba(21,87,160,.3)';
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 18px 55px rgba(0,0,0,.35), 0 0 0 4px rgba(255,255,255,.3)';
             }}
             onMouseLeave={e => {
               (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
-              (e.currentTarget as HTMLElement).style.boxShadow = '0 10px 40px rgba(21,87,160,.4), 0 0 0 5px #fff, 0 0 0 7px rgba(21,87,160,.18)';
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 45px rgba(0,0,0,.25), 0 0 0 4px rgba(255,255,255,.2)';
             }}
           >
             Enter Platform
             <span style={{ fontSize: 20 }}>→</span>
           </button>
 
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '1.2px', textTransform: 'uppercase' }}>
-            Powered by <span style={{ color: '#1557a0', fontWeight: 800 }}>NAWRAS</span>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.55)', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
+            Powered by <span style={{ color: '#fff', fontWeight: 800 }}>NAWRAS</span>
           </div>
         </div>
-      </div>
-
-      {/* ─── BOTTOM HALF — green ──────────────────────────────────── */}
-      <div style={{
-        background: 'linear-gradient(160deg, #064e3b 0%, #065f46 40%, #047857 100%)',
-        padding: '52px 48px 56px',
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-      }}>
 
         {/* Trust badges row */}
         <div style={{
