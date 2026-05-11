@@ -1,6 +1,9 @@
+'use strict';
+
 const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
-const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, ShadingType, BorderStyle, HeadingLevel } = require('docx');
+const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+        WidthType, AlignmentType, ShadingType, BorderStyle, HeadingLevel } = require('docx');
 
 // ─── Excel Export ────────────────────────────────────────────────────────────
 async function exportExcel(statements, notes, meta) {
@@ -8,13 +11,16 @@ async function exportExcel(statements, notes, meta) {
   wb.creator = 'FinStatement Generator';
   wb.created = new Date();
 
-  const { entity_name, period_end, currency } = meta;
+  const { entity_name, period_end, prior_period_end, currency } = meta;
+  const priorBS = statements.prior_balance_sheet    || null;
+  const priorIS = statements.prior_income_statement || null;
+  const priorCF = statements.prior_cash_flow        || null;
 
   addCoverSheet(wb, entity_name, period_end, currency);
-  addBSSheet(wb, statements.balance_sheet, entity_name, period_end, currency);
-  addISSheet(wb, statements.income_statement, entity_name, period_end, currency);
-  addCFSheet(wb, statements.cash_flow, entity_name, period_end, currency);
-  addEqSheet(wb, statements.equity_statement, entity_name, period_end, currency);
+  addBSSheet(wb, statements.balance_sheet,    priorBS, entity_name, period_end, prior_period_end, currency);
+  addISSheet(wb, statements.income_statement, priorIS, entity_name, period_end, prior_period_end, currency);
+  addCFSheet(wb, statements.cash_flow, priorCF,        entity_name, period_end, prior_period_end, currency);
+  addEqSheet(wb, statements.equity_statement,          entity_name, period_end, currency);
   addNotesSheet(wb, notes);
 
   return wb.xlsx.writeBuffer();
@@ -27,7 +33,6 @@ const DGRAY = 'FF334155';
 const GREEN = 'FF16A34A';
 const RED   = 'FFDC2626';
 const WHITE = 'FFFFFFFF';
-const BORDER_THIN = { style: 'thin', color: { argb: 'FFE2E8F0' } };
 
 function styleHeader(ws, row, col, value, opts = {}) {
   const cell = ws.getCell(row, col);
@@ -67,25 +72,38 @@ function addCoverSheet(wb, entity, period, currency) {
   contents.forEach((c, i) => { ws.getCell(`A${10 + i}`).value = `  ${i + 1}. ${c}`; });
 }
 
-function initSheet(wb, name, entity, period, currency) {
+// ── Comparative-aware Excel helpers ──────────────────────────────────────────
+// col 1 = Description (wide)
+// col 2 = Current Year — items AND totals (single column per year)
+// col 3 = Prior Year   — if hasPrior
+
+function initSheet(wb, name, entity, period, priorPeriod, currency) {
   const ws = wb.addWorksheet(name);
-  ws.getColumn(1).width = 42;
-  ws.getColumn(2).width = 18;
-  ws.getColumn(3).width = 18;
+  ws.getColumn(1).width = 50;
+  ws.getColumn(2).width = 22;
+  ws.getColumn(3).width = 22;
+  const hasPrior = !!priorPeriod;
+  const colSpan  = hasPrior ? 'C' : 'B';
   let r = 1;
-  ws.mergeCells(`A${r}:C${r}`); styleHeader(ws, r, 1, entity || 'Company', { size: 14 }); r++;
-  ws.mergeCells(`A${r}:C${r}`); styleHeader(ws, r, 1, name, { size: 12 }); r++;
-  ws.mergeCells(`A${r}:C${r}`); styleHeader(ws, r, 1, `Period ended: ${period || ''}`, { size: 10, bg: '334155' }); r += 2;
-  styleHeader(ws, r, 1, 'Description', { bg: BLUE });
-  styleHeader(ws, r, 2, currency || 'USD', { bg: BLUE, align: 'right' });
-  styleHeader(ws, r, 3, 'Total', { bg: BLUE, align: 'right' });
+
+  ws.mergeCells(`A${r}:${colSpan}${r}`);
+  styleHeader(ws, r, 1, entity || 'Company', { size: 14 }); r++;
+  ws.mergeCells(`A${r}:${colSpan}${r}`);
+  styleHeader(ws, r, 1, name, { size: 12 }); r++;
+  ws.mergeCells(`A${r}:${colSpan}${r}`);
+  styleHeader(ws, r, 1, `Currency: ${currency || 'SAR'}`, { size: 10, bg: '334155' }); r += 2;
+
+  // Column header row
+  styleHeader(ws, r, 1, 'Description',                       { bg: BLUE });
+  styleHeader(ws, r, 2, period      || 'Current Year',       { bg: BLUE, align: 'right' });
+  if (hasPrior)
+    styleHeader(ws, r, 3, priorPeriod || 'Prior Year',       { bg: BLUE, align: 'right' });
   r++;
-  return { ws, r };
+  return { ws, r, hasPrior };
 }
 
-// Render a dict-based sections object: { 'Category': { items: [{label,amount}], total } }
-// categoryOrder controls the display order
-function renderDictSections(ws, sectionsDict, startRow, categoryOrder) {
+// Render sections — totals BELOW items in SAME column
+function renderDictSections(ws, sectionsDict, startRow, categoryOrder, priorSections, hasPrior) {
   let r = startRow;
   const keys = categoryOrder
     ? [...categoryOrder.filter(k => sectionsDict[k]), ...Object.keys(sectionsDict).filter(k => !categoryOrder.includes(k))]
@@ -94,91 +112,108 @@ function renderDictSections(ws, sectionsDict, startRow, categoryOrder) {
   for (const cat of keys) {
     const sec = sectionsDict[cat];
     if (!sec) continue;
+    const priorSec = priorSections?.[cat];
 
-    // Section header
-    const secCell = ws.getCell(r, 1);
-    secCell.value = cat;
-    secCell.font  = { bold: true, color: { argb: WHITE }, size: 11 };
-    secCell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: BLUE } };
-    ws.mergeCells(`A${r}:C${r}`);
+    // Section header row
+    ws.getCell(r, 1).value = cat.toUpperCase();
+    ws.getCell(r, 1).font  = { bold: true, size: 10, color: { argb: DGRAY } };
+    ws.getCell(r, 1).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+    if (hasPrior) ws.mergeCells(`A${r}:C${r}`);
+    else          ws.mergeCells(`A${r}:B${r}`);
     r++;
 
+    // Build prior item lookup
+    const priorMap = {};
+    for (const it of (priorSec?.items || [])) priorMap[it.label] = it.amount;
+
+    // Item rows
     for (const item of (sec.items || [])) {
-      ws.getCell(r, 1).value = `  ${item.label}`;
+      ws.getCell(r, 1).value = `    ${item.label}`;
       ws.getCell(r, 1).font  = { size: 10, color: { argb: DGRAY } };
       numCell(ws, r, 2, item.amount);
+      if (hasPrior) numCell(ws, r, 3, priorMap[item.label] ?? null);
       r++;
     }
 
-    // Section total
+    // Total row — BELOW items, same columns, double underline border
     ws.getCell(r, 1).value = `Total ${cat}`;
-    ws.getCell(r, 1).font  = { bold: true };
-    ws.getCell(r, 1).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: LBLUE } };
-    numCell(ws, r, 3, sec.total, true, BLUE);
-    ws.getCell(r, 3).fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: LBLUE } };
-    ws.getCell(r, 3).border = { top: { style: 'medium', color: { argb: BLUE } }, bottom: { style: 'double', color: { argb: BLUE } } };
+    ws.getCell(r, 1).font  = { bold: true, size: 10 };
+    numCell(ws, r, 2, sec.total, true, BLUE);
+    ws.getCell(r, 2).border = { top: { style: 'thin' }, bottom: { style: 'double', color: { argb: BLUE } } };
+    if (hasPrior) {
+      numCell(ws, r, 3, priorSec?.total ?? null, true, '64748b');
+      ws.getCell(r, 3).border = { top: { style: 'thin' }, bottom: { style: 'double', color: { argb: '64748b' } } };
+    }
     r += 2;
   }
   return r;
 }
 
-function addGrandRow(ws, r, label, value) {
+function addGrandRow(ws, r, label, value, priorValue, hasPrior) {
   ws.getCell(r, 1).value = label;
   ws.getCell(r, 1).font  = { bold: true, size: 11, color: { argb: WHITE } };
   ws.getCell(r, 1).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: BLUE } };
-  numCell(ws, r, 3, value, true, WHITE);
-  ws.getCell(r, 3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BLUE } };
+  numCell(ws, r, 2, value, true, WHITE);
+  ws.getCell(r, 2).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: BLUE } };
+  if (hasPrior) {
+    numCell(ws, r, 3, priorValue ?? null, true, 'FFEEF2FF');
+    ws.getCell(r, 3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '334155' } };
+  }
 }
 
-function addBSSheet(wb, bs, entity, period, currency) {
-  const { ws, r: startRow } = initSheet(wb, 'Balance Sheet', entity, period, currency);
-  const order = ['Current Assets','Non-Current Assets','Current Liabilities','Non-Current Liabilities','Equity'];
-  let r = renderDictSections(ws, bs?.sections || {}, startRow, order);
-  addGrandRow(ws, r,   'TOTAL ASSETS', bs?.total_assets); r++;
-  addGrandRow(ws, r,   'TOTAL LIABILITIES AND EQUITY', bs?.total_liabilities_and_equity);
+function addBSSheet(wb, bs, priorBS, entity, period, priorPeriod, currency) {
+  const { ws, r: startRow, hasPrior } = initSheet(wb, 'Balance Sheet', entity, period, priorPeriod, currency);
+  const order = ['Non-Current Assets','Current Assets','Equity','Non-Current Liabilities','Current Liabilities'];
+  let r = renderDictSections(ws, bs?.sections || {}, startRow, order, priorBS?.sections, hasPrior);
+  addGrandRow(ws, r, 'TOTAL ASSETS',                 bs?.total_assets,                 priorBS?.total_assets,                 hasPrior); r++;
+  addGrandRow(ws, r, 'TOTAL EQUITY',                 bs?.total_equity,                 priorBS?.total_equity,                 hasPrior); r++;
+  addGrandRow(ws, r, 'TOTAL LIABILITIES',            bs?.total_liabilities,            priorBS?.total_liabilities,            hasPrior); r++;
+  addGrandRow(ws, r, 'TOTAL EQUITY AND LIABILITIES', bs?.total_liabilities_and_equity, priorBS?.total_liabilities_and_equity, hasPrior);
 }
 
-function addISSheet(wb, is, entity, period, currency) {
-  const { ws, r: startRow } = initSheet(wb, 'Income Statement', entity, period, currency);
+function addISSheet(wb, is, priorIS, entity, period, priorPeriod, currency) {
+  const { ws, r: startRow, hasPrior } = initSheet(wb, 'Income Statement', entity, period, priorPeriod, currency);
   const order = ['Revenue','Cost of Sales','Operating Expenses','Finance Costs','Income Tax'];
-  let r = renderDictSections(ws, is?.sections || {}, startRow, order);
+  let r = renderDictSections(ws, is?.sections || {}, startRow, order, priorIS?.sections, hasPrior);
 
-  [
-    ['Gross Profit',             is?.gross_profit, GREEN],
-    ['Operating Profit (EBIT)',  is?.ebit,         BLUE],
-    ['Profit Before Tax',        is?.ebt,          BLUE],
-    ['Net Income / (Loss)',      is?.net_income,   (is?.net_income ?? 0) >= 0 ? GREEN : RED],
-  ].forEach(([label, val, col]) => {
-    addGrandRow(ws, r, label, val);
+  const subtotals = [
+    ['GROSS PROFIT / (LOSS)',            is?.gross_profit, priorIS?.gross_profit, GREEN],
+    ['OPERATING PROFIT / (LOSS)',        is?.ebit,         priorIS?.ebit,         BLUE ],
+    ['PROFIT / (LOSS) BEFORE ZAKAT',     is?.ebt,          priorIS?.ebt,          BLUE ],
+    ['NET PROFIT / (LOSS) FOR THE YEAR', is?.net_income,   priorIS?.net_income,   (is?.net_income ?? 0) >= 0 ? GREEN : RED],
+  ];
+  for (const [label, val, priorVal, col] of subtotals) {
+    addGrandRow(ws, r, label, val, priorVal, hasPrior);
     ws.getCell(r, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: col } };
-    ws.getCell(r, 3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: col } };
+    ws.getCell(r, 2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: col } };
     r++;
-  });
+  }
 }
 
-function addCFSheet(wb, cf, entity, period, currency) {
-  const { ws, r: startRow } = initSheet(wb, 'Cash Flow', entity, period, currency);
+function addCFSheet(wb, cf, priorCF, entity, period, priorPeriod, currency) {
+  const { ws, r: startRow, hasPrior } = initSheet(wb, 'Cash Flow', entity, period, priorPeriod, currency);
   const order = ['Operating Activities','Investing Activities','Financing Activities'];
-  let r = renderDictSections(ws, cf?.sections || {}, startRow, order);
-  addGrandRow(ws, r, 'NET CHANGE IN CASH', cf?.net_change_in_cash);
+  let r = renderDictSections(ws, cf?.sections || {}, startRow, order, priorCF?.sections || null, hasPrior);
+  addGrandRow(ws, r, 'NET CHANGE IN CASH AND CASH EQUIVALENTS', cf?.net_change_in_cash, priorCF?.net_change_in_cash ?? null, hasPrior);
 }
 
 function addEqSheet(wb, eq, entity, period, currency) {
-  const { ws, r } = initSheet(wb, 'Changes in Equity', entity, period, currency);
+  const { ws, r } = initSheet(wb, 'Changes in Equity', entity, period, null, currency);
   if (!eq) return;
   let row = r;
   const items = [
-    ['Opening Equity',             eq.opening_equity],
-    ['Net Income for the Period',  eq.net_income],
-    ['Dividends Declared',        -Math.abs(eq.dividends || 0)],
-    ['Other Movements',            eq.other_movements],
+    ['Opening Equity',            eq.opening_equity],
+    ['Net Income for the Period', eq.net_income],
+    ['Dividends Declared',       -Math.abs(eq.dividends || 0)],
+    ['Other Movements',           eq.other_movements],
   ];
   for (const [label, val] of items) {
     ws.getCell(row, 1).value = `  ${label}`;
+    ws.getCell(row, 1).font  = { size: 10, color: { argb: DGRAY } };
     numCell(ws, row, 2, val);
     row++;
   }
-  addGrandRow(ws, row, 'CLOSING EQUITY', eq.closing_equity);
+  addGrandRow(ws, row, 'CLOSING EQUITY', eq.closing_equity, null, false);
 }
 
 function addNotesSheet(wb, notes) {
@@ -187,12 +222,14 @@ function addNotesSheet(wb, notes) {
   styleHeader(ws, 1, 1, 'Notes to the Financial Statements', { size: 14 });
   let r = 3;
   for (const note of (notes || [])) {
-    ws.getCell(r, 1).value = note.title;
+    ws.getCell(r, 1).value = `${note.note_number || ''}  ${note.title || ''}`;
     ws.getCell(r, 1).font  = { bold: true, size: 12, color: { argb: BLUE } };
     r++;
-    const text = (note.content || '')
-      .replace(/<[^>]+>/g, '')
-      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ');
+    // note.body is HTML — strip tags for plain text
+    const text = (note.body || note.content || '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
+      .replace(/\s{2,}/g, ' ').trim();
     ws.getCell(r, 1).value = text;
     ws.getCell(r, 1).alignment = { wrapText: true };
     ws.getRow(r).height = Math.min(200, Math.max(30, text.length / 2));
@@ -203,106 +240,462 @@ function addNotesSheet(wb, notes) {
 // ─── PDF Export ──────────────────────────────────────────────────────────────
 async function exportPDF(statements, notes, meta) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    const doc = new PDFDocument({ margin: 50, size: 'A4', autoFirstPage: true });
     const chunks = [];
     doc.on('data', d => chunks.push(d));
-    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('end',  () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    const { entity_name, period_end, currency } = meta;
-    const fmt = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const pageWidth = doc.page.width - 100;
+    const { entity_name, period_end, prior_period_end, currency, company_type } = meta;
+    const hp = !!(statements.prior_balance_sheet || statements.prior_income_statement);
 
-    doc.fontSize(22).fillColor('#1557a0').text(entity_name || 'Financial Statements', { align: 'center' });
-    doc.moveDown(0.5);
-    doc.fontSize(12).fillColor('#334155').text('Financial Statements', { align: 'center' });
-    doc.moveDown(0.3);
-    doc.fontSize(11).fillColor('#64748b').text(`Period ended: ${period_end || ''}  |  Currency: ${currency || 'USD'}`, { align: 'center' });
-    doc.moveDown(2);
+    // ── Font aliases (Times New Roman) ─────────────────────────────────────
+    const F       = 'Times-Roman';
+    const FB      = 'Times-Bold';
+    const FI      = 'Times-Italic';
 
-    const sectionHeader = (title) => {
-      doc.addPage();
-      doc.fontSize(14).fillColor('#1557a0').text(title);
-      doc.moveDown(0.3);
-      doc.moveTo(50, doc.y).lineTo(50 + pageWidth, doc.y).strokeColor('#1557a0').lineWidth(2).stroke();
-      doc.moveDown(0.5);
+    // ── Page geometry ──────────────────────────────────────────────────────
+    const L   = 50;
+    const R   = doc.page.width - 50;   // ~545
+    const PW  = R - L;                 // ~495
+    const LH  = 13;
+    const FOOT = doc.page.height - 55;
+
+    // Layout: 3 columns when hasPrior, 2 columns otherwise
+    // DESC col: label text
+    // CY col:   current year amount (right-aligned)
+    // PY col:   prior year amount   (right-aligned, only shown when hp)
+    const CY_X  = hp ? L + PW * 0.60 : L + PW * 0.70;  // current year col x
+    const PY_X  = hp ? L + PW * 0.80 : null;             // prior year col x
+    const CY_W  = hp ? PW * 0.19  : PW * 0.28;           // current year col width
+    const PY_W  = hp ? R - PY_X   : 0;                   // prior year col width
+    const DESC_W = CY_X - L - 8;                         // label col width
+
+    // ── Accounting format ─────────────────────────────────────────────────
+    const acctFmt = n => {
+      const v = Number(n ?? 0);
+      if (v === 0) return '–';
+      if (v < 0)   return `(${Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2 })})`;
+      return v.toLocaleString('en-US', { minimumFractionDigits: 2 });
     };
 
-    const dataRow = (label, amount, bold = false, indent = 0) => {
-      const y = doc.y;
-      doc.font(bold ? 'Helvetica-Bold' : 'Helvetica')
-        .fontSize(9).fillColor(bold ? '#1557a0' : '#1a2332')
-        .text(' '.repeat(indent) + label, 50, y, { width: pageWidth - 80, continued: false });
-      if (amount !== undefined && amount !== '') {
-        doc.font(bold ? 'Helvetica-Bold' : 'Helvetica')
-          .fontSize(9).fillColor(bold ? '#1557a0' : '#1a2332')
-          .text(fmt(amount), 50 + pageWidth - 80, y, { width: 80, align: 'right' });
+    // ── Helpers ───────────────────────────────────────────────────────────
+    const checkPage = (needed = LH + 4) => {
+      if (doc.y + needed > FOOT) doc.addPage();
+    };
+
+    const hline = (x1, x2, y, w = 0.5, color = '#1a2332') =>
+      doc.moveTo(x1, y).lineTo(x2, y).lineWidth(w).strokeColor(color).stroke();
+
+    // Draw a data row: label | cy amount | (optional) py amount
+    const row = (label, cy, py, opts = {}) => {
+      checkPage();
+      const y   = doc.y;
+      const bold = opts.bold || false;
+      const sz   = opts.sz   || 9;
+      const clr  = opts.clr  || '#1a2332';
+      const ind  = opts.ind  || 0;
+
+      doc.font(bold ? FB : F)
+         .fontSize(sz).fillColor(clr)
+         .text(label, L + ind, y, { width: DESC_W - ind - 4, lineBreak: false });
+
+      if (cy !== null && cy !== undefined) {
+        const n = Number(cy);
+        doc.font(bold ? FB : F)
+           .fontSize(sz).fillColor(n < 0 ? '#c0392b' : (opts.clr || '#1a2332'))
+           .text(acctFmt(cy), CY_X, y, { width: CY_W, align: 'right', lineBreak: false });
+      }
+
+      if (hp && py !== null && py !== undefined) {
+        const n = Number(py);
+        doc.font(bold ? FB : F)
+           .fontSize(sz).fillColor(n < 0 ? '#c0392b' : '#64748b')
+           .text(acctFmt(py), PY_X, y, { width: PY_W, align: 'right', lineBreak: false });
+      }
+
+      doc.y = y + LH;
+    };
+
+    // Section header
+    const secHead = label => {
+      checkPage(LH + 10);
+      doc.y += 6;
+      hline(L, R, doc.y, 0.4, '#9ca3af');
+      doc.y += 4;
+      doc.font(FB).fontSize(8.5).fillColor('#374151')
+         .text(label.toUpperCase(), L, doc.y, { width: PW, lineBreak: false });
+      doc.y += LH;
+    };
+
+    // Subtotal: single rule above CY (and PY), bold
+    const subtotalRow = (label, cy, py) => {
+      checkPage();
+      hline(CY_X, R, doc.y, 0.5);
+      row(label, cy, py, { bold: true });
+      doc.y += 3;
+    };
+
+    // Grand total: thick rule above, optional double rule below
+    const grandRow = (label, cy, py, doubleBelow = false) => {
+      checkPage(LH + 8);
+      doc.y += 2;
+      hline(CY_X, R, doc.y, 1.2, '#1a2332');
+      doc.y += 2;
+      row(label, cy, py, { bold: true, sz: 9.5 });
+      if (doubleBelow) {
+        hline(CY_X, R, doc.y,     1.0, '#1a2332');
+        doc.y += 2.5;
+        hline(CY_X, R, doc.y,     0.5, '#1a2332');
+        doc.y += 4;
+      } else {
+        hline(CY_X, R, doc.y, 0.75, '#1a2332');
+        doc.y += 4;
       }
     };
 
-    const renderSections = (sectionsDict, categoryOrder) => {
-      if (!sectionsDict) return;
-      const keys = categoryOrder
-        ? [...categoryOrder.filter(k => sectionsDict[k]), ...Object.keys(sectionsDict).filter(k => !categoryOrder.includes(k))]
-        : Object.keys(sectionsDict);
+    // ── Cover page ────────────────────────────────────────────────────────
+    const PH = doc.page.height;
+    const midY = PH / 2 - 80;
+    doc.font(FB).fontSize(16).fillColor('#1a2332')
+       .text((entity_name || 'COMPANY NAME').toUpperCase(), L, midY, { width: PW, align: 'center' });
+    doc.y += 10;
+    doc.font(FI).fontSize(11).fillColor('#374151')
+       .text(`(${(company_type || 'A SAUDI CLOSED JOINT STOCK COMPANY').toUpperCase()})`, L, doc.y, { width: PW, align: 'center' });
+    doc.y += 40;
+    hline(L + PW * 0.2, R - PW * 0.2, doc.y, 1, '#1a2332');
+    doc.y += 20;
+    doc.font(FB).fontSize(13).fillColor('#1a2332')
+       .text('FINANCIAL STATEMENTS', L, doc.y, { width: PW, align: 'center' });
+    doc.y += 14;
+    doc.font(F).fontSize(11).fillColor('#374151')
+       .text(`FOR THE YEAR ENDED ${(period_end || '').toUpperCase()}`, L, doc.y, { width: PW, align: 'center' });
+    doc.y += 14;
+    doc.font(F).fontSize(11).fillColor('#374151')
+       .text('TOGETHER WITH INDEPENDENT AUDITOR\'S REPORT', L, doc.y, { width: PW, align: 'center' });
+    doc.y += 20;
+    hline(L + PW * 0.2, R - PW * 0.2, doc.y, 1, '#1a2332');
+
+    // ── Statement page header with comparative column labels ─────────────
+    const pageHeader = (stmtTitle, subtitle) => {
+      doc.font(FB).fontSize(12).fillColor('#1a2332')
+         .text(entity_name || 'Financial Statements', L, doc.y, { width: PW });
+      doc.y += 3;
+      hline(L, R, doc.y, 0.75, '#1a2332');
+      doc.y += 6;
+      doc.font(FB).fontSize(10).fillColor('#1a2332')
+         .text(stmtTitle, L, doc.y, { width: PW });
+      doc.y += 14;
+      doc.font(FI).fontSize(8.5).fillColor('#64748b')
+         .text(subtitle, L, doc.y, { width: PW });
+      doc.y += 10;
+
+      // Column labels
+      const y = doc.y;
+      doc.font(FB).fontSize(8).fillColor('#1a2332')
+         .text(period_end || 'Current Year', CY_X, y, { width: CY_W, align: 'right', lineBreak: false });
+      if (hp) {
+        doc.font(FB).fontSize(8).fillColor('#9ca3af')
+           .text(prior_period_end || 'Prior Year', PY_X, y, { width: PY_W, align: 'right', lineBreak: false });
+      }
+      doc.y = y + 12;
+      hline(L, R, doc.y, 1, '#1a2332');
+      doc.y += 7;
+    };
+
+    // ── HTML table renderer for notes ─────────────────────────────────────
+    const renderHTMLTable = (tableHtml) => {
+      const rowMatches = [...tableHtml.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)];
+      if (!rowMatches.length) return;
+
+      // Determine column count from first row
+      const firstCells = [...rowMatches[0][1].matchAll(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi)];
+      const numCols = firstCells.length || 1;
+      const colW = PW / numCols;
+
+      for (const rowMatch of rowMatches) {
+        const rowHtml = rowMatch[1];
+        const cellMatches = [...rowHtml.matchAll(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi)];
+        if (!cellMatches.length) continue;
+        const isHeader = /<th[\s>]/i.test(rowHtml);
+        checkPage(LH + 2);
+        const y = doc.y;
+
+        for (let ci = 0; ci < cellMatches.length; ci++) {
+          const raw = cellMatches[ci][1]
+            .replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '')
+            .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+          const cellX = L + ci * colW;
+          const align = ci === 0 ? 'left' : 'right';
+          doc.font(isHeader ? FB : F).fontSize(8)
+             .fillColor(isHeader ? '#1557a0' : '#1a2332')
+             .text(raw, cellX + 2, y, { width: colW - 4, align, lineBreak: false });
+        }
+        doc.y = y + LH;
+        if (isHeader) {
+          hline(L, R, doc.y, 0.5, '#94a3b8');
+          doc.y += 2;
+        }
+      }
+      doc.y += 4;
+    };
+
+    // ── Helper: render a standard dict section ─────────────────────────────
+    const renderSections = (secs, priorSecs, catOrder) => {
+      const keys = catOrder
+        ? [...catOrder.filter(k => secs[k]), ...Object.keys(secs).filter(k => !catOrder.includes(k))]
+        : Object.keys(secs);
 
       for (const cat of keys) {
-        const sec = sectionsDict[cat];
+        const sec = secs[cat];
         if (!sec) continue;
-        doc.font('Helvetica-Bold').fontSize(10);
-        doc.rect(50, doc.y, pageWidth, 16).fill('#1557a0');
-        doc.fillColor('#ffffff').text(cat, 54, doc.y - 13, { width: pageWidth - 8 });
-        doc.moveDown(0.3);
-        for (const item of (sec.items || [])) {
-          dataRow(item.label, item.amount, false, 4);
+        const priorSec = priorSecs?.[cat];
+        const priorMap = {};
+        for (const it of (priorSec?.items || [])) priorMap[it.label] = it.amount;
+
+        secHead(cat);
+        for (const it of (sec.items || [])) {
+          row(it.label, it.amount, priorMap[it.label] ?? null, { ind: 14 });
         }
-        dataRow(`Total ${cat}`, sec.total, true, 2);
-        doc.moveDown(0.3);
+        subtotalRow(`Total ${cat}`, sec.total, priorSec?.total ?? null);
+        doc.y += 2;
       }
     };
 
-    // Balance Sheet
-    sectionHeader('Statement of Financial Position (Balance Sheet)');
-    renderSections(statements.balance_sheet?.sections, ['Current Assets','Non-Current Assets','Current Liabilities','Non-Current Liabilities','Equity']);
-    doc.moveDown(0.5);
-    dataRow('TOTAL ASSETS', statements.balance_sheet?.total_assets, true);
-    dataRow('TOTAL LIABILITIES AND EQUITY', statements.balance_sheet?.total_liabilities_and_equity, true);
+    // ════════════════════════════════════════════════════════════════════════
+    // PAGE 1 — BALANCE SHEET  (cover was on the auto-first page)
+    // ════════════════════════════════════════════════════════════════════════
+    doc.addPage();
+    const bs   = statements.balance_sheet   || {};
+    const pbs  = statements.prior_balance_sheet || null;
+    const secs = bs.sections || {};
 
-    // Income Statement
-    sectionHeader('Statement of Profit or Loss (Income Statement)');
-    renderSections(statements.income_statement?.sections, ['Revenue','Cost of Sales','Operating Expenses','Finance Costs','Income Tax']);
-    doc.moveDown(0.5);
-    dataRow('Gross Profit',  statements.income_statement?.gross_profit, true);
-    dataRow('Net Income',    statements.income_statement?.net_income,   true);
+    pageHeader(
+      'Statement of Financial Position (Balance Sheet)',
+      `As at ${period_end || ''}   ·   Currency: ${currency || 'SAR'}`
+    );
 
-    // Cash Flow
-    sectionHeader('Statement of Cash Flows');
-    renderSections(statements.cash_flow?.sections, ['Operating Activities','Investing Activities','Financing Activities']);
-    dataRow('NET CHANGE IN CASH', statements.cash_flow?.net_change_in_cash, true);
+    renderSections(
+      { 'Non-Current Assets': secs['Non-Current Assets'], 'Current Assets': secs['Current Assets'] },
+      pbs?.sections || {},
+      ['Non-Current Assets', 'Current Assets']
+    );
+    grandRow('TOTAL ASSETS', bs.total_assets, pbs?.total_assets ?? null);
+    doc.y += 8;
 
-    // Changes in Equity
-    sectionHeader('Statement of Changes in Equity');
-    const eq = statements.equity_statement;
-    if (eq) {
-      dataRow('Opening Equity',            eq.opening_equity,            false, 4);
-      dataRow('Net Income for the Period', eq.net_income,                false, 4);
-      dataRow('Dividends Declared',        -Math.abs(eq.dividends || 0), false, 4);
-      dataRow('Other Movements',           eq.other_movements,           false, 4);
-      dataRow('CLOSING EQUITY',            eq.closing_equity,            true);
+    renderSections(
+      { 'Equity': secs['Equity'] },
+      pbs?.sections || {},
+      ['Equity']
+    );
+    subtotalRow('Total Equity', bs.total_equity, pbs?.total_equity ?? null);
+    doc.y += 4;
+
+    renderSections(
+      { 'Non-Current Liabilities': secs['Non-Current Liabilities'], 'Current Liabilities': secs['Current Liabilities'] },
+      pbs?.sections || {},
+      ['Non-Current Liabilities', 'Current Liabilities']
+    );
+
+    doc.y += 4;
+    grandRow('TOTAL LIABILITIES', bs.total_liabilities, pbs?.total_liabilities ?? null);
+    grandRow('TOTAL EQUITY AND LIABILITIES', bs.total_liabilities_and_equity, pbs?.total_liabilities_and_equity ?? null, true);
+
+    // ════════════════════════════════════════════════════════════════════════
+    // PAGE 2 — INCOME STATEMENT
+    // ════════════════════════════════════════════════════════════════════════
+    doc.addPage();
+    const is   = statements.income_statement || {};
+    const pis  = statements.prior_income_statement || null;
+    const isc  = is.sections || {};
+
+    pageHeader(
+      'Statement of Profit or Loss',
+      `For the period ended ${period_end || ''}   ·   Currency: ${currency || 'SAR'}`
+    );
+
+    const rev  = isc['Revenue'];
+    const cos  = isc['Cost of Sales'];
+    const opex = isc['Operating Expenses'];
+    const fin  = isc['Finance Costs'];
+    const tax  = isc['Income Tax'];
+    const prev = sec => pis?.sections?.[sec];
+    const pItem = (sec, lbl) => prev(sec)?.items?.find(i => i.label === lbl)?.amount ?? null;
+
+    // Revenue
+    if (rev) {
+      if (rev.items.length === 1) {
+        row(rev.items[0].label, rev.items[0].amount, prev('Revenue')?.items?.[0]?.amount ?? null);
+      } else {
+        secHead('Revenue');
+        for (const it of rev.items) row(it.label, it.amount, pItem('Revenue', it.label), { ind: 14 });
+        subtotalRow('Total Revenue', rev.total, prev('Revenue')?.total ?? null);
+      }
     }
 
-    // Notes
-    if (notes?.length) {
-      doc.addPage();
-      doc.fontSize(14).fillColor('#1557a0').text('Notes to the Financial Statements');
-      doc.moveDown(1);
-      for (const note of notes) {
-        doc.font('Helvetica-Bold').fontSize(11).fillColor('#1557a0').text(note.title);
-        doc.moveDown(0.3);
-        const text = (note.content || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ');
-        doc.font('Helvetica').fontSize(9).fillColor('#1a2332').text(text, { width: pageWidth });
-        doc.moveDown(0.8);
+    // Cost of Sales
+    if (cos) {
+      if (cos.items.length === 1) {
+        row(cos.items[0].label, cos.items[0].amount, prev('Cost of Sales')?.items?.[0]?.amount ?? null);
+      } else {
+        secHead('Cost of revenue');
+        for (const it of cos.items) row(it.label, it.amount, pItem('Cost of Sales', it.label), { ind: 14 });
+        subtotalRow('Total Cost of Revenue', cos.total, prev('Cost of Sales')?.total ?? null);
       }
+    }
+
+    grandRow('GROSS PROFIT / (LOSS)', is.gross_profit, pis?.gross_profit ?? null);
+    doc.y += 4;
+
+    // Operating Expenses
+    if (opex) {
+      for (const it of opex.items) row(it.label, it.amount, pItem('Operating Expenses', it.label), { ind: 14 });
+    }
+    grandRow('OPERATING PROFIT / (LOSS)', is.ebit, pis?.ebit ?? null);
+    doc.y += 4;
+
+    // Finance
+    if (fin) {
+      for (const it of fin.items) row(it.label, it.amount, pItem('Finance Costs', it.label), { ind: 14 });
+    }
+    grandRow('PROFIT / (LOSS) BEFORE ZAKAT AND INCOME TAX', is.ebt, pis?.ebt ?? null);
+    doc.y += 4;
+
+    // Tax
+    if (tax) {
+      for (const it of tax.items) row(it.label, it.amount, pItem('Income Tax', it.label), { ind: 14 });
+    }
+    grandRow('NET PROFIT / (LOSS) FOR THE YEAR', is.net_income, pis?.net_income ?? null, true);
+
+    // ════════════════════════════════════════════════════════════════════════
+    // PAGE 3 — CASH FLOW
+    // ════════════════════════════════════════════════════════════════════════
+    doc.addPage();
+    const cf  = statements.cash_flow || {};
+    const pcf = statements.prior_cash_flow || null;
+    const cfs = cf.sections || {};
+
+    pageHeader(
+      'Statement of Cash Flows',
+      `For the period ended ${period_end || ''}   ·   Currency: ${currency || 'SAR'}`
+    );
+
+    renderSections(cfs, pcf?.sections || null,
+      ['Operating Activities', 'Investing Activities', 'Financing Activities']);
+
+    grandRow('NET CHANGE IN CASH AND CASH EQUIVALENTS', cf.net_change_in_cash, pcf?.net_change_in_cash ?? null, true);
+
+    // ════════════════════════════════════════════════════════════════════════
+    // PAGE 4 — CHANGES IN EQUITY
+    // ════════════════════════════════════════════════════════════════════════
+    doc.addPage();
+    const eq = statements.equity_statement || {};
+
+    pageHeader(
+      'Statement of Changes in Equity',
+      `For the period ended ${period_end || ''}   ·   Currency: ${currency || 'SAR'}`
+    );
+
+    const eqItems = [
+      ['Opening Equity',                                  eq.opening_equity],
+      ['Net profit / (loss) for the year',                eq.net_income],
+      ['Dividends declared',                             -Math.abs(eq.dividends || 0)],
+      ['Other movements',                                  eq.other_movements || 0],
+    ];
+    for (const [label, val] of eqItems) {
+      row(label, val, null, { ind: 14 });
+    }
+    grandRow('CLOSING EQUITY', eq.closing_equity, null, true);
+
+    // ════════════════════════════════════════════════════════════════════════
+    // PAGE 5 — NOTES
+    // ════════════════════════════════════════════════════════════════════════
+    doc.addPage();
+    doc.font(FB).fontSize(13).fillColor('#1a2332')
+       .text(entity_name || 'Financial Statements', L, doc.y, { width: PW });
+    doc.y += 3;
+    hline(L, R, doc.y, 0.75, '#1a2332');
+    doc.y += 8;
+    doc.font(FB).fontSize(10.5).fillColor('#1a2332')
+       .text('Notes to the Financial Statements', L, doc.y, { width: PW });
+    doc.y += 16;
+
+    for (const note of (notes || [])) {
+      checkPage(LH * 4);
+
+      // ── Note heading ─────────────────────────────────────────
+      const noteNum   = note.note_number != null ? String(note.note_number) : '';
+      const noteTitle = (note.title || '').replace(/^\d+[\s.\-:)]+/, '').trim();
+      const noteHeading = noteNum ? `${noteNum}.  ${noteTitle}` : noteTitle;
+
+      doc.font(FB).fontSize(10).fillColor('#1557a0')
+         .text(noteHeading, L, doc.y, { width: PW, lineBreak: true });
+      doc.y += 3;
+      if (doc.y < FOOT - 10) {
+        hline(L, L + PW * 0.5, doc.y, 0.4, '#1557a0');
+        doc.y += 5;
+      }
+
+      // ── Note body — split into text blocks and table blocks ───
+      const fullBody = note.body || note.content || '';
+
+      // Extract tables and text segments in document order
+      const segments = [];
+      let remaining = fullBody;
+      const tableRe = /<table[\s\S]*?<\/table>/gi;
+      let match;
+      let lastIdx = 0;
+      tableRe.lastIndex = 0;
+      while ((match = tableRe.exec(fullBody)) !== null) {
+        // Text before this table
+        const textBefore = fullBody.slice(lastIdx, match.index);
+        if (textBefore.trim()) segments.push({ type: 'text', html: textBefore });
+        segments.push({ type: 'table', html: match[0] });
+        lastIdx = match.index + match[0].length;
+      }
+      // Remaining text after last table
+      const textAfter = fullBody.slice(lastIdx);
+      if (textAfter.trim()) segments.push({ type: 'text', html: textAfter });
+
+      for (const seg of segments) {
+        if (seg.type === 'table') {
+          renderHTMLTable(seg.html);
+        } else {
+          // Convert HTML to plain text preserving structure
+          const rawText = seg.html
+            .replace(/<\/p>/gi, '\n').replace(/<\/div>/gi, '\n').replace(/<p[^>]*>/gi, '')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<li[^>]*>/gi, '\n  • ').replace(/<\/li>/gi, '')
+            .replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, '$1')
+            .replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, '$1')
+            .replace(/<[^>]+>/g, '')
+            .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+            .replace(/\n{3,}/g, '\n\n').trim();
+
+          const paragraphs = rawText.split(/\n{2,}/);
+          for (const para of paragraphs) {
+            const p = para.trim();
+            if (!p) continue;
+            // bullet lines
+            const lines = p.split('\n');
+            for (const line of lines) {
+              const l = line.trim();
+              if (!l) continue;
+              checkPage(LH * 2);
+              const isBullet = l.startsWith('•');
+              const xOff = isBullet ? 20 : 12;
+              doc.font(F).fontSize(9).fillColor('#374151')
+                 .text(l, L + xOff, doc.y, { width: PW - xOff, lineBreak: true, align: 'justify' });
+              doc.y += 3;
+            }
+            doc.y += 3;
+          }
+        }
+      }
+
+      doc.y += 10; // gap between notes
     }
 
     doc.end();
@@ -312,9 +705,9 @@ async function exportPDF(statements, notes, meta) {
 // ─── Word Export ─────────────────────────────────────────────────────────────
 async function exportWord(statements, notes, meta) {
   const { entity_name, period_end, currency } = meta;
-  const fmt = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtW = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const blueShading = { type: ShadingType.SOLID, color: '1557a0', fill: '1557a0' };
+  const blueShading  = { type: ShadingType.SOLID, color: '1557a0', fill: '1557a0' };
   const lblueShading = { type: ShadingType.SOLID, color: 'dbeafe', fill: 'dbeafe' };
 
   function makeCell(text, opts = {}) {
@@ -343,7 +736,6 @@ async function exportWord(statements, notes, meta) {
     for (const cat of keys) {
       const sec = sectionsDict[cat];
       if (!sec) continue;
-      // category header row
       rows.push(new TableRow({ children: [
         makeCell(cat, { bold: true, white: true, shading: blueShading, width: 60 }),
         makeCell('', { shading: blueShading, width: 20 }),
@@ -352,24 +744,24 @@ async function exportWord(statements, notes, meta) {
       for (const item of (sec.items || [])) {
         rows.push(new TableRow({ children: [
           makeCell(`    ${item.label}`, { width: 60 }),
-          makeCell(fmt(item.amount), { right: true, width: 20 }),
+          makeCell(fmtW(item.amount), { right: true, width: 20 }),
           makeCell('', { width: 20 }),
         ]}));
       }
       rows.push(new TableRow({ children: [
         makeCell(`Total ${cat}`, { bold: true, shading: lblueShading, width: 60 }),
         makeCell('', { shading: lblueShading, width: 20 }),
-        makeCell(fmt(sec.total), { bold: true, right: true, color: '1557a0', shading: lblueShading, width: 20 }),
+        makeCell(fmtW(sec.total), { bold: true, right: true, color: '1557a0', shading: lblueShading, width: 20 }),
       ]}));
     }
     return rows;
   }
 
-  function grandRow(label, value) {
+  function grandRowW(label, value) {
     return new TableRow({ children: [
       makeCell(label, { bold: true, white: true, shading: blueShading, width: 60 }),
       makeCell('', { shading: blueShading, width: 20 }),
-      makeCell(fmt(value), { bold: true, right: true, white: true, shading: blueShading, width: 20 }),
+      makeCell(fmtW(value), { bold: true, right: true, white: true, shading: blueShading, width: 20 }),
     ]});
   }
 
@@ -383,7 +775,7 @@ async function exportWord(statements, notes, meta) {
       rows: [
         new TableRow({ children: [
           makeCell('Description', { bold: true, white: true, shading: blueShading, width: 60 }),
-          makeCell(currency || 'USD', { bold: true, right: true, white: true, shading: blueShading, width: 20 }),
+          makeCell(currency || 'SAR', { bold: true, right: true, white: true, shading: blueShading, width: 20 }),
           makeCell('Total', { bold: true, right: true, white: true, shading: blueShading, width: 20 }),
         ]}),
         ...rows,
@@ -398,65 +790,65 @@ async function exportWord(statements, notes, meta) {
 
   const bsRows = [
     ...sectionRows(bs?.sections, ['Current Assets','Non-Current Assets','Current Liabilities','Non-Current Liabilities','Equity']),
-    grandRow('TOTAL ASSETS', bs?.total_assets),
-    grandRow('TOTAL LIABILITIES AND EQUITY', bs?.total_liabilities_and_equity),
+    grandRowW('TOTAL ASSETS', bs?.total_assets),
+    grandRowW('TOTAL LIABILITIES AND EQUITY', bs?.total_liabilities_and_equity),
   ];
   const isRows = [
     ...sectionRows(is?.sections, ['Revenue','Cost of Sales','Operating Expenses','Finance Costs','Income Tax']),
-    grandRow('GROSS PROFIT', is?.gross_profit),
-    grandRow('NET INCOME / (LOSS)', is?.net_income),
+    grandRowW('GROSS PROFIT', is?.gross_profit),
+    grandRowW('NET INCOME / (LOSS)', is?.net_income),
   ];
   const cfRows = [
     ...sectionRows(cf?.sections, ['Operating Activities','Investing Activities','Financing Activities']),
-    grandRow('NET CHANGE IN CASH', cf?.net_change_in_cash),
+    grandRowW('NET CHANGE IN CASH', cf?.net_change_in_cash),
   ];
   const eqRows = eq ? [
-    new TableRow({ children: [makeCell('Opening Equity', { width: 60 }), makeCell(fmt(eq.opening_equity), { right: true, width: 20 }), makeCell('', { width: 20 })] }),
-    new TableRow({ children: [makeCell('Net Income for the Period', { width: 60 }), makeCell(fmt(eq.net_income), { right: true, width: 20 }), makeCell('', { width: 20 })] }),
-    new TableRow({ children: [makeCell('Dividends Declared', { width: 60 }), makeCell(fmt(-Math.abs(eq.dividends || 0)), { right: true, width: 20 }), makeCell('', { width: 20 })] }),
-    new TableRow({ children: [makeCell('Other Movements', { width: 60 }), makeCell(fmt(eq.other_movements || 0), { right: true, width: 20 }), makeCell('', { width: 20 })] }),
-    grandRow('CLOSING EQUITY', eq.closing_equity),
+    new TableRow({ children: [makeCell('Opening Equity', { width: 60 }), makeCell(fmtW(eq.opening_equity), { right: true, width: 20 }), makeCell('', { width: 20 })] }),
+    new TableRow({ children: [makeCell('Net Income for the Period', { width: 60 }), makeCell(fmtW(eq.net_income), { right: true, width: 20 }), makeCell('', { width: 20 })] }),
+    new TableRow({ children: [makeCell('Dividends Declared', { width: 60 }), makeCell(fmtW(-Math.abs(eq.dividends || 0)), { right: true, width: 20 }), makeCell('', { width: 20 })] }),
+    new TableRow({ children: [makeCell('Other Movements', { width: 60 }), makeCell(fmtW(eq.other_movements || 0), { right: true, width: 20 }), makeCell('', { width: 20 })] }),
+    grandRowW('CLOSING EQUITY', eq.closing_equity),
   ] : [];
 
-  const notesParagraphs = (notes || []).flatMap(note => [
-    new Paragraph({ heading: HeadingLevel.HEADING_3, children: [new TextRun({ text: note.title, color: '1557a0', bold: true })] }),
-    new Paragraph({ children: [new TextRun({
-      text: (note.content || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim(),
-      size: 18,
-    })] }),
-    new Paragraph({ children: [] }),
-  ]);
+  const notesParagraphs = (notes || []).flatMap(note => {
+    const wNum   = note.note_number != null ? String(note.note_number) : '';
+    const wTitle = (note.title || '').replace(/^\d+[\s.\-:)]+/, '').trim();
+    const wHead  = wNum ? `${wNum}.  ${wTitle}` : wTitle;
+    return [
+      new Paragraph({ heading: HeadingLevel.HEADING_3, children: [new TextRun({ text: wHead, color: '1557a0', bold: true })] }),
+      new Paragraph({ children: [new TextRun({
+        text: (note.body || note.content || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim(),
+        size: 18,
+      })] }),
+      new Paragraph({ children: [] }),
+    ];
+  });
 
-  const doc = new Document({
+  const wdoc = new Document({
     sections: [{
       children: [
         new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: entity_name || 'Financial Statements', color: '1557a0', bold: true, size: 36 })] }),
-        new Paragraph({ children: [new TextRun({ text: `Period ended: ${period_end || ''}  |  Currency: ${currency || 'USD'}`, color: '64748b' })] }),
+        new Paragraph({ children: [new TextRun({ text: `Period ended: ${period_end || ''}  |  Currency: ${currency || 'SAR'}`, color: '64748b' })] }),
         new Paragraph({ children: [] }),
-
         heading('Statement of Financial Position (Balance Sheet)'),
         makeTable(bsRows),
         new Paragraph({ children: [] }),
-
         heading('Statement of Profit or Loss (Income Statement)'),
         makeTable(isRows),
         new Paragraph({ children: [] }),
-
         heading('Statement of Cash Flows'),
         makeTable(cfRows),
         new Paragraph({ children: [] }),
-
         heading('Statement of Changes in Equity'),
         makeTable(eqRows),
         new Paragraph({ children: [] }),
-
         heading('Notes to the Financial Statements'),
         ...notesParagraphs,
       ],
     }],
   });
 
-  return Packer.toBuffer(doc);
+  return Packer.toBuffer(wdoc);
 }
 
 module.exports = { exportExcel, exportPDF, exportWord };

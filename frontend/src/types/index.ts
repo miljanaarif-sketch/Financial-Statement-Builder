@@ -1,4 +1,4 @@
-export type FileType = 'trial_balance' | 'ar_aging' | 'ap_aging' | 'fixed_assets' | 'mapping_file';
+export type FileType = 'trial_balance' | 'trial_balance_prior' | 'ar_aging' | 'ap_aging' | 'fixed_assets' | 'mapping_file';
 
 export interface AccountSuggestion {
   account_code: string;
@@ -90,6 +90,10 @@ export interface Statements {
   cash_flow: CashFlow;
   equity_statement: EquityStatement;
   unmapped: AccountMapping[];
+  // optional comparative (prior year) data
+  prior_balance_sheet?:    BalanceSheet    | null;
+  prior_income_statement?: IncomeStatement | null;
+  prior_cash_flow?:        CashFlow        | null;
 }
 
 export interface Note {
@@ -101,7 +105,9 @@ export interface Note {
 export interface AppSession {
   session_id: string;
   entity_name: string;
+  activities: string;
   period_end: string;
+  prior_period_end: string;
   currency: string;
   uploads: Partial<Record<FileType, UploadedFile>>;
   suggestions: AccountSuggestion[];

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DEFAULT_NOTES } from './data/defaultNotes';
 import LandingPage from './pages/LandingPage';
 import ConnectPage from './pages/ConnectPage';
 import Sidebar from './components/Sidebar';
@@ -15,13 +16,15 @@ type View = 'landing' | 'connect' | 'app';
 const INITIAL_SESSION: AppSession = {
   session_id: '',
   entity_name: '',
+  activities: '',
   period_end: '',
+  prior_period_end: '',
   currency: 'SAR',
   uploads: {},
   suggestions: [],
   mappings: [],
   statements: null,
-  notes: [],
+  notes: DEFAULT_NOTES,
   step: 0,
 };
 

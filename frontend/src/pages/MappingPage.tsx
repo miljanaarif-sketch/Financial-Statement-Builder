@@ -3,20 +3,17 @@ import api from '../api/client';
 import type { AppSession, AccountMapping, AccountSuggestion } from '../types';
 
 /* ── helpers ──────────────────────────────────────────────────── */
+// Only BS and IS are in scope; CF and Equity are excluded from mapping
 const STMT_LABELS: Record<string, string> = {
-  balance_sheet: 'Balance Sheet',
+  balance_sheet:    'Balance Sheet',
   income_statement: 'Income Statement',
-  cash_flow: 'Cash Flow',
-  equity: 'Equity',
-  unmapped: 'Exclude / Unmapped',
+  unmapped:         'Exclude / Unmapped',
 };
 
 const STMT_COLORS: Record<string, string> = {
-  balance_sheet: '#1557a0',
+  balance_sheet:    '#1557a0',
   income_statement: '#7c3aed',
-  cash_flow: '#0891b2',
-  equity: '#16a34a',
-  unmapped: '#94a3b8',
+  unmapped:         '#94a3b8',
 };
 
 // Normalise confidence: backend may return 0-1 fractions or 0-100 integers
@@ -52,11 +49,16 @@ export default function MappingPage({ session, setSession, onNext, onBack }: Pro
   };
 
   const suggestions: AccountSuggestion[] = (session.suggestions || []).map(normalizeSugg);
+
+  // Only BS and IS are in scope; demote any CF / equity / other suggestions to unmapped
+  const VALID_STMTS = new Set(['balance_sheet', 'income_statement', 'unmapped']);
+  const normalizeStmt = (stmt: string) => VALID_STMTS.has(stmt) ? stmt : 'unmapped';
+
   const mappings: AccountMapping[] = session.mappings?.length
-    ? session.mappings
+    ? session.mappings.map(m => ({ ...m, statement: normalizeStmt(m.statement) }))
     : suggestions.map(s => ({
         account_code: s.account_code, account_name: s.account_name,
-        statement: s.suggested_statement, category: s.suggested_category,
+        statement: normalizeStmt(s.suggested_statement), category: s.suggested_category,
         subcategory: s.suggested_subcategory, sign: s.sign,
       }));
 
@@ -211,7 +213,7 @@ export default function MappingPage({ session, setSession, onNext, onBack }: Pro
         </div>
 
         {/* Breakdown by statement */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
           {Object.entries(STMT_LABELS).map(([key, label]) => {
             const count = byStatement[key] || 0;
             const pct = mappings.length ? Math.round((count / mappings.length) * 100) : 0;
