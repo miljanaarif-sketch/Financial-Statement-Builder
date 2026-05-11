@@ -8,7 +8,12 @@ from services.statement_generator import generate_statements
 from services.notes_generator import generate_default_notes
 
 router = APIRouter(prefix="/statements", tags=["statements"])
-UPLOAD_DIR = Path(__file__).parent.parent / "uploads"
+import os
+if os.environ.get("VERCEL"):
+    UPLOAD_DIR = Path("/tmp") / "uploads"
+else:
+    UPLOAD_DIR = Path(__file__).parent.parent / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 
 @router.post("/generate")

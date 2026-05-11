@@ -7,7 +7,12 @@ from models.schemas import MappingRequest, MappingTemplate
 from services.account_mapper import get_all_categories
 
 router = APIRouter(prefix="/mapping", tags=["mapping"])
-UPLOAD_DIR = Path(__file__).parent.parent / "uploads"
+import os
+if os.environ.get("VERCEL"):
+    UPLOAD_DIR = Path("/tmp") / "uploads"
+else:
+    UPLOAD_DIR = Path(__file__).parent.parent / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 
 @router.get("/categories")

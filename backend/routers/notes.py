@@ -5,7 +5,12 @@ from fastapi.responses import JSONResponse
 from models.schemas import NotesRequest
 
 router = APIRouter(prefix="/notes", tags=["notes"])
-UPLOAD_DIR = Path(__file__).parent.parent / "uploads"
+import os
+if os.environ.get("VERCEL"):
+    UPLOAD_DIR = Path("/tmp") / "uploads"
+else:
+    UPLOAD_DIR = Path(__file__).parent.parent / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 
 @router.post("/save")

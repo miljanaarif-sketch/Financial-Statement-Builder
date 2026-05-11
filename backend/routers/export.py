@@ -6,7 +6,12 @@ from models.schemas import ExportRequest
 from services.export_service import export_excel, export_pdf, export_word
 
 router = APIRouter(prefix="/export", tags=["export"])
-UPLOAD_DIR = Path(__file__).parent.parent / "uploads"
+import os
+if os.environ.get("VERCEL"):
+    UPLOAD_DIR = Path("/tmp") / "uploads"
+else:
+    UPLOAD_DIR = Path(__file__).parent.parent / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 
 def _load(session_id: str):
