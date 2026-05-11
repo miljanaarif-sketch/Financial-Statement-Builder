@@ -112,23 +112,23 @@ export default function LandingPage({ onUpload }: Props) {
 
         {/* Feature grid */}
         <div style={{
-          maxWidth: 920, margin: '52px auto 0', padding: '0 48px',
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16,
+          maxWidth: 960, margin: '52px auto 0', padding: '0 48px',
+          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20,
         }}>
           {FEATURES.map(f => (
             <div key={f.title} style={{
               background: '#f8fafc', border: '1px solid #e2e8f0',
-              borderRadius: 12, padding: '20px 18px',
-              display: 'flex', alignItems: 'flex-start', gap: 14,
+              borderRadius: 16, padding: '28px 24px',
+              display: 'flex', flexDirection: 'column', gap: 16,
             }}>
               <div style={{
-                width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                width: 56, height: 56, borderRadius: 14, flexShrink: 0,
                 background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
               }}>{f.icon}</div>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>{f.title}</div>
-                <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>{f.desc}</div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>{f.title}</div>
+                <div style={{ fontSize: 14, color: '#64748b', lineHeight: 1.7 }}>{f.desc}</div>
               </div>
             </div>
           ))}
