@@ -25,7 +25,7 @@ export default function LandingPage({ onUpload }: Props) {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Inter', system-ui, sans-serif", overflowX: 'hidden' }}>
 
       {/* ─── TOP HALF — white ─────────────────────────────────────── */}
-      <div style={{ flex: 1, background: '#ffffff', paddingBottom: 80 }}>
+      <div style={{ flex: 1, background: '#ffffff', paddingBottom: 55 }}>
 
         {/* Nav */}
         <nav style={{
@@ -105,17 +105,16 @@ export default function LandingPage({ onUpload }: Props) {
         </div>
       </div>
 
-      {/* ─── DIVIDER with centered ENTER button ───────────────────── */}
+      {/* ─── DIVIDER — Enter button + Powered by NAWRAS ─────────── */}
       <div style={{
-        position: 'relative', height: 0, display: 'flex',
-        alignItems: 'center', justifyContent: 'center', zIndex: 10,
+        position: 'relative', height: 110,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        zIndex: 10, gap: 14,
       }}>
         <button
           onClick={onUpload}
           style={{
-            position: 'absolute',
-            top: '50%',
-            transform: 'translateY(-50%)',
             display: 'flex', alignItems: 'center', gap: 12,
             padding: '18px 52px', borderRadius: 50, border: 'none',
             background: 'linear-gradient(135deg, #1557a0, #2563eb)',
@@ -125,23 +124,30 @@ export default function LandingPage({ onUpload }: Props) {
             transition: 'transform .2s, box-shadow .2s',
           }}
           onMouseEnter={e => {
-            (e.currentTarget as HTMLElement).style.transform = 'translateY(-50%) scale(1.04)';
+            (e.currentTarget as HTMLElement).style.transform = 'scale(1.04)';
             (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 50px rgba(21,87,160,.55), 0 0 0 5px #fff, 0 0 0 7px rgba(21,87,160,.3)';
           }}
           onMouseLeave={e => {
-            (e.currentTarget as HTMLElement).style.transform = 'translateY(-50%) scale(1)';
+            (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
             (e.currentTarget as HTMLElement).style.boxShadow = '0 10px 40px rgba(21,87,160,.45), 0 0 0 5px #fff, 0 0 0 7px rgba(21,87,160,.2)';
           }}
         >
           Enter Platform
           <span style={{ fontSize: 20 }}>→</span>
         </button>
+
+        <div style={{
+          fontSize: 11, fontWeight: 600, color: '#64748b', letterSpacing: '1px',
+          textTransform: 'uppercase',
+        }}>
+          Powered by <span style={{ color: '#1557a0', fontWeight: 800 }}>NAWRAS</span>
+        </div>
       </div>
 
       {/* ─── BOTTOM HALF — green ──────────────────────────────────── */}
       <div style={{
         background: 'linear-gradient(160deg, #064e3b 0%, #065f46 40%, #047857 100%)',
-        padding: '80px 48px 56px',
+        padding: '52px 48px 56px',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
       }}>
 
