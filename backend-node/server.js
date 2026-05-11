@@ -31,7 +31,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Vercel experimentalServices forwards requests with the routePrefix intact
 // (i.e. Express receives /_/backend/upload instead of /upload).
 // Strip the prefix here so all route handlers work without modification.
-const ROUTE_PREFIX = '/_/backend';
+const ROUTE_PREFIX = '/api';
 app.use((req, _res, next) => {
   if (req.path.startsWith(ROUTE_PREFIX)) {
     req.url = req.url.slice(ROUTE_PREFIX.length) || '/';
