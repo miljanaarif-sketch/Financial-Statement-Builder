@@ -1,4 +1,11 @@
 require('dotenv').config();
+
+// On Vercel the filesystem is read-only outside /tmp — set UPLOADS_DIR before
+// any route modules are required so they all inherit the correct value.
+if (process.env.VERCEL || process.env.VERCEL_ENV) {
+  process.env.UPLOADS_DIR = '/tmp/uploads';
+}
+
 const express = require('express');
 const cors    = require('cors');
 const path    = require('path');
@@ -13,8 +20,8 @@ const exportRouter     = require('./routes/export');
 const app  = express();
 const PORT = 8000;
 
-// Ensure uploads dir exists
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
+// Ensure uploads dir exists (uses env var so it works both locally and on Vercel)
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 app.use(cors({ origin: '*' }));
