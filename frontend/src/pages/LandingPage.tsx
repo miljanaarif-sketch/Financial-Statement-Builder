@@ -103,44 +103,39 @@ export default function LandingPage({ onUpload }: Props) {
             </div>
           ))}
         </div>
-      </div>
 
-      {/* ─── DIVIDER — Enter button + Powered by NAWRAS ─────────── */}
-      <div style={{
-        position: 'relative', height: 110,
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        zIndex: 10, gap: 14,
-      }}>
-        <button
-          onClick={onUpload}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            padding: '18px 52px', borderRadius: 50, border: 'none',
-            background: 'linear-gradient(135deg, #1557a0, #2563eb)',
-            color: '#fff', fontSize: 17, fontWeight: 800, cursor: 'pointer',
-            boxShadow: '0 10px 40px rgba(21,87,160,.45), 0 0 0 5px #fff, 0 0 0 7px rgba(21,87,160,.2)',
-            letterSpacing: '-.2px', whiteSpace: 'nowrap',
-            transition: 'transform .2s, box-shadow .2s',
-          }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLElement).style.transform = 'scale(1.04)';
-            (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 50px rgba(21,87,160,.55), 0 0 0 5px #fff, 0 0 0 7px rgba(21,87,160,.3)';
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
-            (e.currentTarget as HTMLElement).style.boxShadow = '0 10px 40px rgba(21,87,160,.45), 0 0 0 5px #fff, 0 0 0 7px rgba(21,87,160,.2)';
-          }}
-        >
-          Enter Platform
-          <span style={{ fontSize: 20 }}>→</span>
-        </button>
-
+        {/* ─── Enter button + Powered by NAWRAS (inside white half) ─ */}
         <div style={{
-          fontSize: 11, fontWeight: 600, color: '#64748b', letterSpacing: '1px',
-          textTransform: 'uppercase',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+          padding: '48px 0 52px',
         }}>
-          Powered by <span style={{ color: '#1557a0', fontWeight: 800 }}>NAWRAS</span>
+          <button
+            onClick={onUpload}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '18px 56px', borderRadius: 50, border: 'none',
+              background: 'linear-gradient(135deg, #1557a0, #2563eb)',
+              color: '#fff', fontSize: 17, fontWeight: 800, cursor: 'pointer',
+              boxShadow: '0 10px 40px rgba(21,87,160,.4), 0 0 0 5px #fff, 0 0 0 7px rgba(21,87,160,.18)',
+              letterSpacing: '-.2px', whiteSpace: 'nowrap',
+              transition: 'transform .2s, box-shadow .2s',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.transform = 'scale(1.05)';
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 50px rgba(21,87,160,.55), 0 0 0 5px #fff, 0 0 0 7px rgba(21,87,160,.3)';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 10px 40px rgba(21,87,160,.4), 0 0 0 5px #fff, 0 0 0 7px rgba(21,87,160,.18)';
+            }}
+          >
+            Enter Platform
+            <span style={{ fontSize: 20 }}>→</span>
+          </button>
+
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '1.2px', textTransform: 'uppercase' }}>
+            Powered by <span style={{ color: '#1557a0', fontWeight: 800 }}>NAWRAS</span>
+          </div>
         </div>
       </div>
 
