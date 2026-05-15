@@ -4,9 +4,11 @@ interface Props {
   onLogin: () => void;
 }
 
-const APP_PASSWORD = import.meta.env.VITE_APP_PASSWORD || 'nawras2024';
+const APP_USERNAME = import.meta.env.VITE_APP_USERNAME || 'galaxy';
+const APP_PASSWORD = import.meta.env.VITE_APP_PASSWORD || '123456';
 
 export default function LoginPage({ onLogin }: Props) {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
@@ -18,14 +20,16 @@ export default function LoginPage({ onLogin }: Props) {
     setError('');
 
     setTimeout(() => {
-      if (password === APP_PASSWORD) {
+      if (username === APP_USERNAME && password === APP_PASSWORD) {
         onLogin();
       } else {
-        setError('Incorrect password. Please try again.');
+        setError('Incorrect username or password. Please try again.');
         setLoading(false);
       }
     }, 600);
   };
+
+  const isReady = username.length > 0 && password.length > 0;
 
   return (
     <div style={{
@@ -83,10 +87,36 @@ export default function LoginPage({ onLogin }: Props) {
             color: '#0f172a', letterSpacing: '-.5px',
           }}>Welcome back</h1>
           <p style={{ margin: '0 0 32px', fontSize: 15, color: '#64748b' }}>
-            Enter your password to access the platform
+            Sign in to access the platform
           </p>
 
           <form onSubmit={handleSubmit}>
+
+            {/* Username field */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{
+                display: 'block', fontSize: 13, fontWeight: 600,
+                color: '#374151', marginBottom: 8,
+              }}>Username</label>
+              <input
+                type="text"
+                value={username}
+                onChange={e => { setUsername(e.target.value); setError(''); }}
+                placeholder="Enter username"
+                autoFocus
+                autoComplete="username"
+                style={{
+                  width: '100%', padding: '13px 16px',
+                  borderRadius: 12, fontSize: 15,
+                  border: error ? '2px solid #ef4444' : '2px solid #e2e8f0',
+                  outline: 'none', boxSizing: 'border-box',
+                  color: '#0f172a', background: '#f8fafc',
+                  transition: 'border-color .15s',
+                }}
+                onFocus={e => { if (!error) (e.target as HTMLInputElement).style.borderColor = '#3b82f6'; }}
+                onBlur={e  => { if (!error) (e.target as HTMLInputElement).style.borderColor = '#e2e8f0'; }}
+              />
+            </div>
 
             {/* Password field */}
             <div style={{ marginBottom: 20 }}>
@@ -100,7 +130,7 @@ export default function LoginPage({ onLogin }: Props) {
                   value={password}
                   onChange={e => { setPassword(e.target.value); setError(''); }}
                   placeholder="Enter password"
-                  autoFocus
+                  autoComplete="current-password"
                   style={{
                     width: '100%', padding: '13px 48px 13px 16px',
                     borderRadius: 12, fontSize: 15,
@@ -138,15 +168,15 @@ export default function LoginPage({ onLogin }: Props) {
             {/* Submit */}
             <button
               type="submit"
-              disabled={loading || !password}
+              disabled={loading || !isReady}
               style={{
                 width: '100%', padding: '14px',
                 borderRadius: 12, border: 'none',
-                background: loading || !password
+                background: loading || !isReady
                   ? '#cbd5e1'
                   : 'linear-gradient(135deg, #1557a0, #2563eb)',
                 color: '#fff', fontSize: 16, fontWeight: 700,
-                cursor: loading || !password ? 'not-allowed' : 'pointer',
+                cursor: loading || !isReady ? 'not-allowed' : 'pointer',
                 transition: 'all .2s',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}
