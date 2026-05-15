@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { DEFAULT_NOTES } from './data/defaultNotes';
+import LoginPage from './pages/LoginPage';
 import LandingPage from './pages/LandingPage';
 import EntryPage from './pages/EntryPage';
 import ConnectPage from './pages/ConnectPage';
@@ -12,7 +13,7 @@ import NotesPage from './pages/NotesPage';
 import ExportPage from './pages/ExportPage';
 import type { AppSession } from './types';
 
-type View = 'landing' | 'entry' | 'connect' | 'app';
+type View = 'login' | 'landing' | 'entry' | 'connect' | 'app';
 
 const INITIAL_SESSION: AppSession = {
   session_id: '',
@@ -38,7 +39,7 @@ const STEPS = [
 ];
 
 export default function App() {
-  const [view, setView] = useState<View>('landing');
+  const [view, setView] = useState<View>('login');
   const [session, setSession] = useState<AppSession>(INITIAL_SESSION);
 
   const goTo = (step: number) => {
@@ -47,8 +48,13 @@ export default function App() {
 
   const reset = () => {
     setSession(INITIAL_SESSION);
-    setView('landing');
+    setView('login');
   };
+
+  // ── Login page ──────────────────────────────────────────────
+  if (view === 'login') {
+    return <LoginPage onLogin={() => setView('landing')} />;
+  }
 
   // ── Landing page ────────────────────────────────────────────
   if (view === 'landing') {
